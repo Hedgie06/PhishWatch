@@ -1,0 +1,41 @@
+name: phishwatch
+description: A phishing detection app
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.0.5
+  cupertino_icons: ^1.0.8
+  
+  # For API requests
+  http: ^1.2.2
+
+  # For local storage (choose one)
+  shared_preferences: ^2.2.3   # simple JSON / string storage
+  # hive: ^2.2.3
+  # hive_flutter: ^1.1.0
+
+  # JSON annotations (optional, for model serialization)
+  json_annotation: ^4.9.0
+
+  # For local system notifications
+  flutter_local_notifications: ^17.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+  # Needed if you use Hive or JSON serialization
+  build_runner: ^2.4.6
+  # hive_generator: ^2.0.1
+  # json_serializable: ^6.8.0
+
+flutter:
+  uses-material-design: true
