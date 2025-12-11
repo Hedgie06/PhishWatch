@@ -16,6 +16,9 @@ dependencies:
   # For API requests
   http: ^1.2.2
 
+  # For opening external links (Telegram, etc.)
+  url_launcher: ^6.2.4  # <--- ADD THIS LINE HERE
+
   # For local storage (choose one)
   shared_preferences: ^2.2.3   # simple JSON / string storage
   # hive: ^2.2.3
