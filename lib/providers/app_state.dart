@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Import Auth
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 import '../models/detection_item.dart';
 import '../services/notification_service.dart';
 import '../services/api_service.dart';
@@ -24,86 +26,107 @@ class AppState extends ChangeNotifier {
     required this.storageService,
   });
 
-
-// inside lib/providers/app_state.dart
-
-Future<void> startListening() async {
-  if (listenerEnabled) return;
-  listenerEnabled = true;
-  serviceRunning = true;
-  notifyListeners();
-
-  _subscription = notificationService.notificationStream.listen((data) async {
-    // ---------------------------------------------------------
-    // 🔴 FIX 1: USE THE CORRECT KEYS FROM YOUR LOGS
-    // ---------------------------------------------------------
-    // The logs show the keys are 'text' and 'app', not 'message' and 'package'
-    final message = data['text'] ?? data['message'] ?? ''; 
-    final app = data['app'] ?? data['package'] ?? 'Unknown'; 
-    final title = data['title'] ?? '';
-    // ---------------------------------------------------------
-
-    // 🔴 FIX 2: IGNORE "SUMMARY" NOTIFICATIONS
-    // Telegram sends "628 new messages" summaries. We don't want to scan those.
-    if (message.contains("new messages") || message.contains("WhatsApp Web")) {
-      return; 
-    }
-
-    // 🔴 FIX 3: TELEGRAM FILTER
-    // Check if the app name contains "telegram" (Case insensitive)
-    if (!app.toString().toLowerCase().contains('telegram') && app != 'Manual Scan') {
-       return; // Ignore WhatsApp, SMS, etc.
-    }
-
+  // -----------------------------------------------------------------------------
+  // 🔴 NEW: Submit Report to Firebase (Anonymous Auth + Firestore)
+  // -----------------------------------------------------------------------------
+  Future<void> submitReport(String message) async {
     if (message.isEmpty) return;
 
     try {
-      final result = await apiService.classifyMessage(message);
-
-      final isPhishing = result['prediction'].toString().toLowerCase() == 'spam';
-      final confidence = result['spam_probability'] as double;
-
-      // TRIGGER ALERT
-      if (isPhishing) {
-        await AlertService.showDangerAlert(
-          "Phishing Detected!", 
-          "Suspicious message from $title" // Use title (Sender Name) here
-        );
+      // 1. Silent Login (Anonymous)
+      // This creates a secure, temporary user ID without a login screen.
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        await FirebaseAuth.instance.signInAnonymously();
       }
 
-      final detection = DetectionItem(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        // Use 'title' (Sender Name) if available, otherwise use App Name
-        app: title.isNotEmpty ? title : app, 
-        message: message,
-        isPhishing: isPhishing, 
-        confidence: confidence,
-        timestamp: DateTime.now(),
-      );
-
-      _detections.insert(0, detection);
-      await storageService.saveDetection(detection);
-      notifyListeners();
+      // 2. Upload to Firestore
+      // We only store the MESSAGE and TIME. No personal info.
+      await FirebaseFirestore.instance.collection('reports').add({
+        'text': message,
+        'timestamp': FieldValue.serverTimestamp(), // Server-side time
+        'platform': 'Phishwatch',
+      });
       
+      if (kDebugMode) {
+        print("✅ Report sent to Firestore successfully!");
+      }
+
     } catch (e) {
       if (kDebugMode) {
-        print('Error classifying message: $e');
+        print("❌ Error sending report: $e");
       }
+      rethrow; // Pass error back to UI so we can show the Red Snackbar
     }
-  });
-}
+  }
+  // -----------------------------------------------------------------------------
 
-  // Manual Paste message
-  // ADD THIS TO lib/providers/app_state.dart
+  Future<void> startListening() async {
+    if (listenerEnabled) return;
+    listenerEnabled = true;
+    serviceRunning = true;
+    notifyListeners();
+
+    _subscription = notificationService.notificationStream.listen((data) async {
+      // Correct Keys from your logs
+      final message = data['text'] ?? data['message'] ?? ''; 
+      final app = data['app'] ?? data['package'] ?? 'Unknown'; 
+      final title = data['title'] ?? '';
+
+      // Ignore Summary notifications
+      if (message.contains("new messages") || message.contains("WhatsApp Web")) {
+        return; 
+      }
+
+      // Telegram Filter
+      if (!app.toString().toLowerCase().contains('telegram') && app != 'Manual Scan') {
+        return; 
+      }
+
+      if (message.isEmpty) return;
+
+      try {
+        final result = await apiService.classifyMessage(message);
+
+        final isPhishing = result['prediction'].toString().toLowerCase() == 'spam';
+        final confidence = result['spam_probability'] as double;
+
+        // Trigger Alert
+        if (isPhishing) {
+          await AlertService.showDangerAlert(
+            "Phishing Detected!", 
+            "Suspicious message from $title"
+          );
+        }
+
+        final detection = DetectionItem(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          app: title.isNotEmpty ? title : app, 
+          message: message,
+          isPhishing: isPhishing, 
+          confidence: confidence,
+          timestamp: DateTime.now(),
+        );
+
+        _detections.insert(0, detection);
+        await storageService.saveDetection(detection);
+        notifyListeners();
+        
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error classifying message: $e');
+        }
+      }
+    });
+  }
+
+  // Manual Scan Logic
   Future<void> manualScan(String text) async {
     if (text.isEmpty) return;
 
     try {
-      // 1. Call your existing API
       final result = await apiService.classifyMessage(text);
 
-      // 2. PARSE THE RESULT (Fixing the mismatch)
-      // Assuming 'prediction' returns strings "spam" or "ham"
       final isPhishing = result['prediction'].toString().toLowerCase() == 'spam';
       final confidence = result['spam_probability'] as double;
 
@@ -116,7 +139,6 @@ Future<void> startListening() async {
         timestamp: DateTime.now(),
       );
 
-      // 3. Save and Update UI
       _detections.insert(0, detection);
       await storageService.saveDetection(detection);
       notifyListeners();
@@ -125,8 +147,6 @@ Future<void> startListening() async {
       if (kDebugMode) {
         print('Error manual scan: $e');
       }
-      // Optional: Show an error snackbar here if you have access to context
-      // or rethrow to handle it in the UI
     }
   }
 
@@ -143,5 +163,11 @@ Future<void> startListening() async {
       ..clear()
       ..addAll(history);
     notifyListeners();
+  }
+ 
+  Future<void> clearHistory() async {
+    await storageService.clear();
+    _detections.clear(); 
+    notifyListeners(); 
   }
 }

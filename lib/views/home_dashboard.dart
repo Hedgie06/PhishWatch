@@ -114,7 +114,8 @@ class HomeDashboard extends StatelessWidget {
                   () => launchUrl(Uri.parse('https://t.me/AsamAlert'))),
               _buildActionCard(context, Icons.menu_book, "Library", "Learn tactics", () {}),
               _buildActionCard(context, Icons.flag_outlined, "Report", "Flag error",
-                  () => _showReportDialog(context)),
+                  // Pass 'appState' here
+                  () => _showReportDialog(context, appState)),
             ],
           ),
 
@@ -270,14 +271,21 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
     );
   }
 
-  // Helper: Report Dialog (Unchanged)
-void _showReportDialog(BuildContext context) {
-    // We don't need a text controller immediately unless you plan to validate
-    // But we use FocusNode to handle keyboard smooth appearance if needed
-    
+  void _showReportDialog(BuildContext context, AppState appState) {
+    // Only need the message controller now
+    final TextEditingController _msgController = TextEditingController();
+    final FocusNode _focusNode = FocusNode();
+
+    // Smooth focus delay
+    Future.delayed(Duration(milliseconds: 600), () {
+      if (_focusNode.canRequestFocus) {
+        _focusNode.requestFocus();
+      }
+    });
+
     Navigator.of(context).push(
       PageRouteBuilder(
-        opaque: false, // Transparent background
+        opaque: false,
         barrierDismissible: true,
         barrierColor: Colors.black54,
         transitionDuration: Duration(milliseconds: 500),
@@ -285,10 +293,9 @@ void _showReportDialog(BuildContext context) {
           
           return Scaffold(
             backgroundColor: Colors.transparent,
-            resizeToAvoidBottomInset: false, // We handle layout manually
+            resizeToAvoidBottomInset: false, 
             body: LayoutBuilder(
               builder: (context, constraints) {
-                // Calculate available height above keyboard
                 final bottomInset = MediaQuery.of(context).viewInsets.bottom;
                 final availableHeight = constraints.maxHeight - bottomInset - 40;
 
@@ -312,7 +319,7 @@ void _showReportDialog(BuildContext context) {
                           child: Container(
                             margin: EdgeInsets.all(20),
                             constraints: BoxConstraints(
-                              maxHeight: availableHeight > 0 ? availableHeight : 400,
+                              maxHeight: availableHeight > 0 ? availableHeight : 450,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.white,
@@ -328,39 +335,34 @@ void _showReportDialog(BuildContext context) {
                                   children: [
                                     Icon(Icons.flag_outlined, color: Colors.orange, size: 28),
                                     SizedBox(width: 10),
-                                    Text("Report Error", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                    Text("Report Missed Scam", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                                 SizedBox(height: 5),
-                                Text("Did we miss a phishing message? Help us retrain the model.", 
+                                Text("Did we miss a phishing message? Paste the text below to help us retrain the model.", 
                                   style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                
+                                SizedBox(height: 5),
+                                // Privacy Badge
+                                Row(
+                                  children: [
+                                    Icon(Icons.lock_outline, size: 12, color: Colors.green),
+                                    SizedBox(width: 4),
+                                    Text("Anonymous Submission", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
                                 
                                 SizedBox(height: 20),
                                 
-                                // Input 1: Sender
+                                // INPUT: Message Content
                                 TextField(
+                                  controller: _msgController,
+                                  focusNode: _focusNode, // Auto-focus the message field
+                                  maxLines: 5,
+                                  minLines: 3,
                                   decoration: InputDecoration(
-                                    labelText: "Sender Name / Number",
-                                    labelStyle: TextStyle(color: Colors.grey),
-                                    filled: true,
-                                    fillColor: Color(0xFFF5F7FA), // Clean Grey
-                                    // 🔴 REMOVES THE BLACK OUTLINE:
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(15),
-                                      borderSide: BorderSide.none, 
-                                    ),
-                                    contentPadding: EdgeInsets.all(15),
-                                  ),
-                                ),
-                                
-                                SizedBox(height: 15),
-                                
-                                // Input 2: Message
-                                TextField(
-                                  maxLines: 4,
-                                  minLines: 2,
-                                  decoration: InputDecoration(
-                                    labelText: "Paste the message here...",
+                                    labelText: "Paste the phishing message here...",
+                                    alignLabelWithHint: true,
                                     labelStyle: TextStyle(color: Colors.grey),
                                     filled: true,
                                     fillColor: Color(0xFFF5F7FA),
@@ -384,12 +386,33 @@ void _showReportDialog(BuildContext context) {
                                     ),
                                     SizedBox(width: 10),
                                     ElevatedButton(
-                                      onPressed: () {
-                                        // TODO: Firebase Logic
-                                        Navigator.pop(context);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(content: Text("Report sent! Thank you.")),
-                                        );
+                                      onPressed: () async { // 1. Made async
+                                        if (_msgController.text.isNotEmpty) {
+                                          try {
+                                            // 2. Call the submit function
+                                            await appState.submitReport(_msgController.text);
+                                            
+                                            // 3. Close dialog & Show Success
+                                            if (context.mounted) {
+                                              Navigator.pop(context);
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text("Report sent securely!"), 
+                                                  backgroundColor: Colors.green
+                                                ),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Text("Failed to send. Check logs."), 
+                                                  backgroundColor: Colors.red
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        }
                                       },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Color(0xFF229ED9),

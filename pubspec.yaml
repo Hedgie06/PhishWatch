@@ -29,6 +29,9 @@ dependencies:
 
   # For local system notifications
   flutter_local_notifications: ^17.2.2
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
 
 dev_dependencies:
   flutter_test:

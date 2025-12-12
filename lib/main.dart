@@ -1,24 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart'; // 1. IMPORT THIS
+
 import 'providers/app_state.dart';
 import 'services/notification_service.dart';
 import 'services/api_service.dart';
-import 'services/storage_service.dart'; // Make sure this file exists!
+import 'services/storage_service.dart';
 import 'services/alert_service.dart';
-
-// The NEW UI
 import 'views/home_screen.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Keep your existing local notification setup
   await AlertService.init(); 
+
+  // 2. ADD THIS LINE
+  // This turns on the connection to your google-services.json file
+  await Firebase.initializeApp(); 
 
   runApp(
     MultiProvider(
       providers: [
-        // This injects the "Brain" (AppState) into the app
         ChangeNotifierProvider(
           create: (_) => AppState(
             notificationService: NotificationService(),
@@ -43,9 +45,8 @@ class PhishWatchApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
-        scaffoldBackgroundColor: Color(0xFFF5F7FA), // Matches your new UI background
+        scaffoldBackgroundColor: Color(0xFFF5F7FA),
       ),
-      // Point to the NEW Home Screen
       home: HomeScreen(),
     );
   }

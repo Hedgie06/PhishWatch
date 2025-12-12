@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "784176677568",
+    "project_id": "phishwatch-79108",
+    "storage_bucket": "phishwatch-79108.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:784176677568:android:df5c77e9945a535ee26325",
+        "android_client_info": {
+          "package_name": "com.example.phishwatch"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrwPLqK6qwaGFwd4EL9FaWI-xz68YdYPY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,3 +1,16 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // This is required to find the plugin
+        classpath("com.android.tools.build:gradle:8.2.1") // Ensure this matches your AGP version if different
+        classpath("com.google.gms:google-services:4.4.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22")
+    }
+}
+
 allprojects {
     repositories {
         google()
