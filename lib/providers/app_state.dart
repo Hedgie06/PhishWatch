@@ -35,6 +35,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     required this.storageService,
   }) {
     WidgetsBinding.instance.addObserver(this);
+    // Run permission check in background on startup
     _syncPermissionState(); 
   }
 
@@ -52,14 +53,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> _syncPermissionState() async {
-    // 1. Sync Shield (Notification Listener)
     bool hasListenerPermission = await notificationService.isListenerEnabled();
     if (listenerEnabled && !hasListenerPermission) {
       if (kDebugMode) print("⚠️ Listener permission revoked. Stopping shield.");
       await stopListening();
     }
 
-    // 2. Sync Toggle (Alert Notifications)
     PermissionStatus status = await Permission.notification.status;
     if (status.isDenied || status.isPermanentlyDenied) {
       if (_notificationsEnabled) {
@@ -71,7 +70,50 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   // -----------------------------------------------------------------------------
-  // TOGGLE NOTIFICATIONS (Settings Page)
+  // ⚡ OPTIMIZED: FIRE & FORGET THREAT UPLOAD
+  // -----------------------------------------------------------------------------
+  // 1. Returns 'void' so UI doesn't wait
+  void _handlePhishingDetection(String message, String source) {
+    // Update local UI instantly
+    _totalThreatsIntercepted++;
+    notifyListeners();
+
+    // 2. Run Cloud Logic in Background Future
+    Future(() async {
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) await FirebaseAuth.instance.signInAnonymously();
+
+        final batch = FirebaseFirestore.instance.batch();
+        
+        // A. Update Counter (Fixed: Use set + merge so it creates the doc if missing)
+        final statsRef = FirebaseFirestore.instance.collection('app_stats').doc('global_counts');
+        batch.set(
+          statsRef, 
+          {'phishing_detected': FieldValue.increment(1)},
+          SetOptions(merge: true), // <--- THIS FIXES THE CRASH
+        );
+
+        // B. Upload Text
+        final threatRef = FirebaseFirestore.instance.collection('detected_threats').doc();
+        batch.set(threatRef, {
+          'text': message,
+          'source': source,
+          'timestamp': FieldValue.serverTimestamp(),
+          'detected_by': 'auto_system',
+        });
+
+        await batch.commit();
+        if (kDebugMode) print("🚀 Threat uploaded in background.");
+
+      } catch (e) {
+        if (kDebugMode) print("⚠️ Background upload failed: $e");
+      }
+    });
+  }
+
+  // -----------------------------------------------------------------------------
+  // TOGGLE NOTIFICATIONS
   // -----------------------------------------------------------------------------
   Future<void> toggleNotifications(BuildContext context, bool value) async {
     if (value) {
@@ -131,14 +173,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   // -----------------------------------------------------------------------------
-  // 🔴 UPDATED: START LISTENING (Home Dashboard Shield)
+  // START LISTENING
   // -----------------------------------------------------------------------------
   Future<void> startListening(BuildContext context) async {
     bool hasPermission = await notificationService.isListenerEnabled();
 
     if (!hasPermission) {
-      if (kDebugMode) print("⚠️ Permission missing. Showing dialog...");
-      
       if (context.mounted) {
         showDialog(
           context: context,
@@ -204,12 +244,13 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
         if (isPhishing) {
           if (_notificationsEnabled) {
-            await AlertService.showDangerAlert(
+            AlertService.showDangerAlert(
               "Phishing Detected!", 
               "Suspicious message from $title"
             );
           }
-          _incrementGlobalStats();
+          // 🔥 Fire & Forget Upload (Background)
+          _handlePhishingDetection(message, "Notification: $app");
         }
 
         final detection = DetectionItem(
@@ -240,6 +281,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
+  // -----------------------------------------------------------------------------
+  // SUBMIT REPORT
+  // -----------------------------------------------------------------------------
   Future<void> submitReport(String message) async {
     if (message.isEmpty) return;
     try {
@@ -258,29 +302,34 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  // -----------------------------------------------------------------------------
+  // LOAD STATS (With Timeout for Speed)
+  // -----------------------------------------------------------------------------
   Future<void> loadGlobalStats() async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('app_stats').doc('global_counts').get();
+      // Don't wait more than 3 seconds
+      final doc = await FirebaseFirestore.instance
+          .collection('app_stats')
+          .doc('global_counts')
+          .get()
+          .timeout(Duration(seconds: 3)); 
+
       if (doc.exists) {
         _totalThreatsIntercepted = doc.data()?['phishing_detected'] ?? 0;
         notifyListeners();
       }
     } catch (e) {
-      if (kDebugMode) print("Error loading stats: $e");
+      if (kDebugMode) print("Error loading stats (non-fatal): $e");
     }
   }
 
-  void _incrementGlobalStats() {
-    _totalThreatsIntercepted++;
-    FirebaseFirestore.instance.collection('app_stats').doc('global_counts').update({
-      'phishing_detected': FieldValue.increment(1),
-    }).catchError((e) => print("Stat update failed: $e"));
-    notifyListeners();
-  }
-
+  // -----------------------------------------------------------------------------
+  // ⚡ OPTIMIZED MANUAL SCAN
+  // -----------------------------------------------------------------------------
   Future<DetectionItem?> manualScan(String text) async {
     if (text.isEmpty) return null;
     try {
+      // 1. Only await the critical API path
       final result = await apiService.classifyMessage(text);
       if (kDebugMode) print("🔍 API RETURNED: $result"); 
 
@@ -296,7 +345,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         timestamp: DateTime.now(),
       );
 
-      if (isPhishing) _incrementGlobalStats();
+      // 2. Trigger upload in BACKGROUND (Don't await!)
+      if (isPhishing) {
+        _handlePhishingDetection(text, "Manual Scan");
+      }
+      
+      // 3. Return immediately so UI displays result
       return detection; 
 
     } catch (e) {
@@ -310,8 +364,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _detections
       ..clear()
       ..addAll(history);
-    await loadGlobalStats(); 
-    await _syncPermissionState();
+    
+    // Background updates
+    loadGlobalStats(); 
+    _syncPermissionState();
+    
     notifyListeners();
   }
  
