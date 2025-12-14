@@ -58,8 +58,12 @@ class HomeDashboard extends StatelessWidget {
           Center(
             child: Column(
               children: [
+                // Inside HomeDashboard...
                 GestureDetector(
-                  onTap: () => isScanning ? appState.stopListening() : appState.startListening(),
+                  onTap: () => isScanning 
+                      ? appState.stopListening() 
+                      // 🔴 PASS 'context' HERE
+                      : appState.startListening(context), 
                   child: Container(
                     height: 100, width: 100,
                     decoration: BoxDecoration(

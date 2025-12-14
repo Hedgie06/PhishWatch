@@ -12,7 +12,8 @@ class ScanItemTile extends StatelessWidget {
     return Container(
       margin: EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // 🔴 CHANGE: Use a subtle light red background for phishing items
+        color: item.isPhishing ? Color(0xFFFFF5F5) : Colors.white,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -52,7 +53,6 @@ class ScanItemTile extends StatelessWidget {
                         : Colors.green.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  // 🔴 FIX: Always use the Telegram Icon
                   child: Icon(
                     Icons.telegram, 
                     color: item.isPhishing ? Colors.red : Colors.green,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/detection_item.dart';
-import '../widgets/scan_item_tile.dart'; // <--- 1. NEW IMPORT
+import '../widgets/scan_item_tile.dart';
 
 class ActivityPage extends StatefulWidget {
   @override
@@ -21,7 +21,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-    // Filter the lists
     final safeList = appState.detections.where((d) => !d.isPhishing).toList();
     final dangerousList = appState.detections.where((d) => d.isPhishing).toList();
 
@@ -30,7 +29,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
       body: SafeArea(
         child: Column(
           children: [
-            // 1. CLEAN HEADER
+            // 1. HEADER ROW
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Row(
@@ -40,25 +39,49 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                   Spacer(),
+                  
+                  // 🔵 1. SCAN COUNT PILL (Now on the Left)
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.history, size: 14, color: Colors.blue),
-                        SizedBox(width: 5),
+                        Icon(Icons.history, size: 16, color: Colors.blue),
+                        SizedBox(width: 4),
                         Text("${appState.detections.length} Scans", style: TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold)),
                       ],
                     ),
-                  )
+                  ),
+
+                  // 🔴 2. DELETE BUTTON (Now on the Right)
+                  if (appState.detections.isNotEmpty) ...[
+                    SizedBox(width: 10), // Spacing between buttons
+                    GestureDetector(
+                      onTap: () => _showClearHistoryDialog(context),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1), // Light Red
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                            SizedBox(width: 4),
+                            Text("Clear", style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
 
-            // 2. MODERN "PILL" TABS
+            // 2. MODERN TABS
             Container(
               margin: EdgeInsets.symmetric(horizontal: 20),
               height: 45,
@@ -87,7 +110,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
 
             SizedBox(height: 15),
 
-            // 3. THE LIST (Using Reusable Widget)
+            // 3. THE LIST
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -99,6 +122,41 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // DELETE CONFIRMATION DIALOG
+  void _showClearHistoryDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: Text("Clear History?"),
+        content: Text("This will permanently delete all scan records."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text("Cancel", style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              // Call AppState to clear data
+              Provider.of<AppState>(context, listen: false).clearHistory();
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("History cleared"), 
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 1),
+                )
+              );
+            },
+            child: Text("Delete", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
@@ -121,8 +179,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       itemCount: list.length,
       itemBuilder: (context, index) {
-        // 🔴 REPLACED MANUAL CODE WITH REUSABLE WIDGET
-        // This makes it clickable and consistent with the Dashboard
         return ScanItemTile(item: list[index]);
       },
     );
