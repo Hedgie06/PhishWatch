@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 
 // Import your new view files
+import 'library_page.dart';
 import 'home_dashboard.dart';
 import 'activity_page.dart';
 import 'settings_page.dart';

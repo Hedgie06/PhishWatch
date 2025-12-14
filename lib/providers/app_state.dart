@@ -121,15 +121,20 @@ class AppState extends ChangeNotifier {
   }
 
   // Manual Scan Logic
-  Future<void> manualScan(String text) async {
-    if (text.isEmpty) return;
+  Future<DetectionItem?> manualScan(String text) async {
+    if (text.isEmpty) return null;
 
     try {
+      // 1. Call API
       final result = await apiService.classifyMessage(text);
+      
+      print("🔍 API RETURNED: $result"); 
 
+      // 2. Parse Data
       final isPhishing = result['prediction'].toString().toLowerCase() == 'spam';
       final confidence = result['spam_probability'] as double;
 
+      // 3. Create Object (Just for passing data, not saving)
       final detection = DetectionItem(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         app: 'Manual Scan',
@@ -139,14 +144,17 @@ class AppState extends ChangeNotifier {
         timestamp: DateTime.now(),
       );
 
-      _detections.insert(0, detection);
-      await storageService.saveDetection(detection);
-      notifyListeners();
+      // 🔴 DELETED: We do NOT save to _detections or storageService anymore.
+      // This keeps your Activity Log & Recent Scans clean.
+
+      // 4. Return the object so the Popup can display it
+      return detection; 
 
     } catch (e) {
       if (kDebugMode) {
-        print('Error manual scan: $e');
+        print('❌ Error manual scan: $e');
       }
+      return null;
     }
   }
 

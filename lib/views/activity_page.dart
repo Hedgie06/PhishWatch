@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../models/detection_item.dart';
+import '../widgets/scan_item_tile.dart'; // <--- 1. NEW IMPORT
 
 class ActivityPage extends StatefulWidget {
   @override
@@ -20,15 +21,16 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
+    // Filter the lists
     final safeList = appState.detections.where((d) => !d.isPhishing).toList();
     final dangerousList = appState.detections.where((d) => d.isPhishing).toList();
 
     return Scaffold(
-      backgroundColor: Color(0xFFF5F7FA), // Match Home Background
+      backgroundColor: Color(0xFFF5F7FA),
       body: SafeArea(
         child: Column(
           children: [
-            // 1. CLEAN HEADER (Matches Home Page Vibe)
+            // 1. CLEAN HEADER
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Row(
@@ -38,7 +40,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                   Spacer(),
-                  // Optional: Tiny icon to show it's live
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -58,7 +59,6 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
             ),
 
             // 2. MODERN "PILL" TABS
-            // Instead of the old AppBar tabs, we use a clean Container
             Container(
               margin: EdgeInsets.symmetric(horizontal: 20),
               height: 45,
@@ -68,15 +68,14 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
               ),
               child: TabBar(
                 controller: _tabController,
-                // Design the "Selected" Pill
                 indicator: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(25),
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: Offset(0, 2))],
                 ),
                 indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent, // Remove the ugly line
-                labelColor: Color(0xFF229ED9), // Blue text when selected
+                dividerColor: Colors.transparent,
+                labelColor: Color(0xFF229ED9),
                 labelStyle: TextStyle(fontWeight: FontWeight.bold),
                 unselectedLabelColor: Colors.grey.shade600,
                 tabs: [
@@ -88,7 +87,7 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
 
             SizedBox(height: 15),
 
-            // 3. THE LIST (Expanded to fill rest of screen)
+            // 3. THE LIST (Using Reusable Widget)
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -122,56 +121,9 @@ class _ActivityPageState extends State<ActivityPage> with SingleTickerProviderSt
       padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       itemCount: list.length,
       itemBuilder: (context, index) {
-        final item = list[index];
-        return Container(
-          margin: EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            // Subtle shadow like Home Dashboard
-            boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: Offset(0, 4))],
-          ),
-          child: ListTile(
-            contentPadding: EdgeInsets.all(15),
-            leading: Container(
-              padding: EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isDangerous ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.telegram, color: isDangerous ? Colors.red : Colors.green),
-            ),
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                   child: Text(item.app, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)
-                ),
-                // RISK SCORE BADGE
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8)
-                  ),
-                  child: Text(
-                    "${(item.confidence * 100).toInt()}% Conf.",
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                  ),
-                )
-              ],
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: Text(
-                item.message,
-                style: TextStyle(color: Colors.black54, fontSize: 12, height: 1.4),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
-        );
+        // 🔴 REPLACED MANUAL CODE WITH REUSABLE WIDGET
+        // This makes it clickable and consistent with the Dashboard
+        return ScanItemTile(item: list[index]);
       },
     );
   }

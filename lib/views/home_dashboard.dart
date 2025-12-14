@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/app_state.dart';
-import '../models/detection_item.dart';
+import '../views/library_page.dart';
+import 'scan_result_page.dart';
+import '../widgets/scan_item_tile.dart'; // <--- 1. NEW IMPORT
 
 class HomeDashboard extends StatelessWidget {
   
@@ -19,7 +21,7 @@ class HomeDashboard extends StatelessWidget {
         children: [
           // 1. MANUAL SCAN TRIGGER (Hero Animation Source)
           Hero(
-            tag: 'search_bar', // Unique tag for animation
+            tag: 'search_bar', 
             child: Material(
               color: Colors.transparent,
               child: InkWell(
@@ -112,9 +114,13 @@ class HomeDashboard extends StatelessWidget {
             children: [
               _buildActionCard(context, Icons.people_outline, "Community", "Join AsamAlert",
                   () => launchUrl(Uri.parse('https://t.me/AsamAlert'))),
-              _buildActionCard(context, Icons.menu_book, "Library", "Learn tactics", () {}),
+              _buildActionCard(context, Icons.menu_book, "Library", "Learn tactics", 
+                  () => Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (context) => LibraryPage())
+                  )
+              ),
               _buildActionCard(context, Icons.flag_outlined, "Report", "Flag error",
-                  // Pass 'appState' here
                   () => _showReportDialog(context, appState)),
             ],
           ),
@@ -131,6 +137,7 @@ class HomeDashboard extends StatelessWidget {
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
               itemCount: detections.take(3).length,
+              // Uses the imported ScanItemTile which handles the click navigation automatically!
               itemBuilder: (context, index) => ScanItemTile(item: detections[index]),
             ),
         ],
@@ -139,42 +146,39 @@ class HomeDashboard extends StatelessWidget {
   }
 
   // ==========================================
-  // NEW: MANUAL SCAN DIALOG (With Hero Animation)
+  // MANUAL SCAN DIALOG
   // ==========================================
-void _showManualScanDialog(BuildContext context, AppState appState) {
+  void _showManualScanDialog(BuildContext parentContext, AppState appState) {
     final TextEditingController _dialogSearchController = TextEditingController();
     final FocusNode _focusNode = FocusNode();
 
-    // Delay focus to prevent animation jank
     Future.delayed(Duration(milliseconds: 600), () {
       if (_focusNode.canRequestFocus) {
         _focusNode.requestFocus();
       }
     });
 
-    Navigator.of(context).push(
+    Navigator.of(parentContext).push(
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: true,
         barrierColor: Colors.black54,
         transitionDuration: Duration(milliseconds: 500),
-        pageBuilder: (context, animation, secondaryAnimation) {
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
           return Scaffold(
             backgroundColor: Colors.transparent,
-            // We handle resizing manually for smoother control
             resizeToAvoidBottomInset: false, 
             body: LayoutBuilder(
               builder: (context, constraints) {
-                // Calculate available height above keyboard
                 final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-                final availableHeight = constraints.maxHeight - bottomInset - 40; // 40 is padding
+                final availableHeight = constraints.maxHeight - bottomInset - 40;
 
                 return Stack(
                   children: [
                     // Background tap to close
                     Positioned.fill(
                       child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => Navigator.pop(dialogContext),
                         behavior: HitTestBehavior.opaque,
                         child: Container(color: Colors.transparent),
                       ),
@@ -183,15 +187,13 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                     // The Dialog
                     Center(
                       child: Padding(
-                        padding: EdgeInsets.only(bottom: bottomInset), // Push up by keyboard height
+                        padding: EdgeInsets.only(bottom: bottomInset),
                         child: Hero(
                           tag: 'search_bar',
                           child: Material(
                             color: Colors.transparent,
                             child: Container(
                               margin: EdgeInsets.all(20),
-                              // 🔴 THIS IS THE FIX:
-                              // Constrain the box so it NEVER exceeds available screen space.
                               constraints: BoxConstraints(
                                 maxHeight: availableHeight > 0 ? availableHeight : 300,
                               ),
@@ -200,10 +202,8 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                                 borderRadius: BorderRadius.circular(20),
                                 boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 20)],
                               ),
-                              // Use ListView instead of Column + SingleChildScrollView
-                              // It handles scrolling overflow natively.
                               child: ListView(
-                                shrinkWrap: true, // occupy only needed space
+                                shrinkWrap: true,
                                 padding: EdgeInsets.all(20),
                                 children: [
                                   Text("Message Check", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -233,16 +233,43 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                                     mainAxisAlignment: MainAxisAlignment.end,
                                     children: [
                                       TextButton(
-                                        onPressed: () => Navigator.pop(context),
+                                        onPressed: () => Navigator.pop(dialogContext),
                                         child: Text("Cancel", style: TextStyle(color: Colors.grey)),
                                       ),
                                       SizedBox(width: 10),
                                       ElevatedButton.icon(
-                                        onPressed: () {
+                                        onPressed: () async {
                                           if (_dialogSearchController.text.isNotEmpty) {
-                                            appState.manualScan(_dialogSearchController.text);
-                                            Navigator.pop(context);
-                                            FocusScope.of(context).unfocus();
+                                            Navigator.pop(dialogContext);
+                                            
+                                            if (parentContext.mounted) {
+                                              ScaffoldMessenger.of(parentContext).showSnackBar(
+                                                SnackBar(content: Text("Analyzing message..."), duration: Duration(seconds: 1))
+                                              );
+                                            }
+
+                                            try {
+                                              final result = await appState.manualScan(_dialogSearchController.text);
+
+                                              if (result != null && parentContext.mounted) {
+                                                Navigator.push(
+                                                  parentContext,
+                                                  MaterialPageRoute(
+                                                    builder: (context) => ScanResultPage(
+                                                      message: result.message,
+                                                      confidence: result.confidence,
+                                                      isPhishing: result.isPhishing,
+                                                    ),
+                                                  ),
+                                                );
+                                              } 
+                                            } catch (e) {
+                                              if (parentContext.mounted) {
+                                                ScaffoldMessenger.of(parentContext).showSnackBar(
+                                                  SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red)
+                                                );
+                                              }
+                                            }
                                           }
                                         },
                                         style: ElevatedButton.styleFrom(
@@ -251,6 +278,7 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                                           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                                         ),
                                         label: Text("Check Now", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                        icon: Icon(Icons.shield_outlined, color: Colors.white, size: 18),
                                       ),
                                     ],
                                   )
@@ -272,11 +300,9 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
   }
 
   void _showReportDialog(BuildContext context, AppState appState) {
-    // Only need the message controller now
     final TextEditingController _msgController = TextEditingController();
     final FocusNode _focusNode = FocusNode();
 
-    // Smooth focus delay
     Future.delayed(Duration(milliseconds: 600), () {
       if (_focusNode.canRequestFocus) {
         _focusNode.requestFocus();
@@ -301,7 +327,6 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
 
                 return Stack(
                   children: [
-                    // 1. Background tap to close
                     Positioned.fill(
                       child: GestureDetector(
                         onTap: () => Navigator.pop(context),
@@ -309,8 +334,6 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                         child: Container(color: Colors.transparent),
                       ),
                     ),
-                    
-                    // 2. The Dialog Box
                     Center(
                       child: Padding(
                         padding: EdgeInsets.only(bottom: bottomInset),
@@ -330,7 +353,6 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                               shrinkWrap: true,
                               padding: EdgeInsets.all(20),
                               children: [
-                                // Header
                                 Row(
                                   children: [
                                     Icon(Icons.flag_outlined, color: Colors.orange, size: 28),
@@ -341,9 +363,7 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                                 SizedBox(height: 5),
                                 Text("Did we miss a phishing message? Paste the text below to help us retrain the model.", 
                                   style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                
                                 SizedBox(height: 5),
-                                // Privacy Badge
                                 Row(
                                   children: [
                                     Icon(Icons.lock_outline, size: 12, color: Colors.green),
@@ -351,13 +371,10 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                                     Text("Anonymous Submission", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
                                   ],
                                 ),
-                                
                                 SizedBox(height: 20),
-                                
-                                // INPUT: Message Content
                                 TextField(
                                   controller: _msgController,
-                                  focusNode: _focusNode, // Auto-focus the message field
+                                  focusNode: _focusNode,
                                   maxLines: 5,
                                   minLines: 3,
                                   decoration: InputDecoration(
@@ -373,10 +390,7 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                                     contentPadding: EdgeInsets.all(15),
                                   ),
                                 ),
-                                
                                 SizedBox(height: 20),
-                                
-                                // Action Buttons
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
@@ -386,13 +400,10 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
                                     ),
                                     SizedBox(width: 10),
                                     ElevatedButton(
-                                      onPressed: () async { // 1. Made async
+                                      onPressed: () async {
                                         if (_msgController.text.isNotEmpty) {
                                           try {
-                                            // 2. Call the submit function
                                             await appState.submitReport(_msgController.text);
-                                            
-                                            // 3. Close dialog & Show Success
                                             if (context.mounted) {
                                               Navigator.pop(context);
                                               ScaffoldMessenger.of(context).showSnackBar(
@@ -458,57 +469,6 @@ void _showManualScanDialog(BuildContext context, AppState appState) {
             Text(subtitle, style: TextStyle(color: Colors.grey, fontSize: 10), textAlign: TextAlign.center),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// Helper: Scan Item Tile
-class ScanItemTile extends StatelessWidget {
-  final DetectionItem item;
-  const ScanItemTile({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 15),
-      padding: EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.05), blurRadius: 10, offset: Offset(0, 5))],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: item.isPhishing ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.telegram, color: item.isPhishing ? Colors.red : Colors.green),
-          ),
-          SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.app, style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(item.message, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey, fontSize: 12)),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                item.isPhishing ? "PHISHING" : "SAFE",
-                style: TextStyle(color: item.isPhishing ? Colors.red : Colors.green, fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-              Text("${(item.confidence * 100).toInt()}%", style: TextStyle(color: Colors.grey.shade400, fontSize: 10)),
-            ],
-          )
-        ],
       ),
     );
   }
