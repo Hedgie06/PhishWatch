@@ -9,10 +9,17 @@ class ScanItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🔴 STANDARDIZED LOGIC: Winning Label Confidence
+    // Matches the Result Page exactly.
+    final double displayConfidence = item.isPhishing 
+        ? item.confidence 
+        : (1.0 - item.confidence);
+        
+    final int percentage = (displayConfidence * 100).toInt();
+
     return Container(
       margin: EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
-        // 🔴 CHANGE: Use a subtle light red background for phishing items
         color: item.isPhishing ? Color(0xFFFFF5F5) : Colors.white,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
@@ -34,7 +41,7 @@ class ScanItemTile extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) => ScanResultPage(
                   message: item.message,
-                  confidence: item.confidence,
+                  confidence: item.confidence, // Pass raw score (Page will invert it again)
                   isPhishing: item.isPhishing,
                 ),
               ),
@@ -78,7 +85,7 @@ class ScanItemTile extends StatelessWidget {
                   ),
                 ),
                 
-                // 3. Status Badge
+                // 3. Status Badge (NOW CORRECTLY SYNCED)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -91,7 +98,7 @@ class ScanItemTile extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "${(item.confidence * 100).toInt()}%", 
+                      "$percentage%", // Shows 52% (Safe) or 90% (Phishing)
                       style: TextStyle(color: Colors.grey.shade400, fontSize: 10)
                     ),
                   ],

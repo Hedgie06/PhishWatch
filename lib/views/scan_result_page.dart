@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class ScanResultPage extends StatelessWidget {
   final String message;
-  final double confidence; // Raw API score (0.0 to 1.0)
+  final double confidence; // Raw probability from API (e.g. 0.48)
   final bool isPhishing;
 
   const ScanResultPage({
@@ -14,46 +14,18 @@ class ScanResultPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Calculate Display Percentage
-    // If Safe, we invert it (e.g., 0.1 spam score = 90% Safe)
-    double displayConfidence = isPhishing ? confidence : (1.0 - confidence);
-    
-    // 2. Determine TIER (Color, Text, Icon)
-    Color statusColor;
-    String statusText;
-    String adviceText;
-    IconData statusIcon;
+    // 🔴 STANDARDIZED LOGIC: Winning Label Confidence
+    // If Safe (0.48), we invert it to (0.52) to show "52% Safe"
+    final double displayConfidence = isPhishing 
+        ? confidence 
+        : (1.0 - confidence);
 
-    if (!isPhishing) {
-      // --- SAFE TIER ---
-      statusColor = Colors.green;
-      statusText = "Safe Message";
-      statusIcon = Icons.verified_user;
-      adviceText = "No phishing patterns detected. However, always stay vigilant.";
-    } else {
-      // --- PHISHING TIERS ---
-      if (confidence >= 0.90) {
-        // TIER 1: CRITICAL (90% - 100%)
-        statusColor = Color(0xFFD32F2F); // Darker Red
-        statusText = "CRITICAL THREAT";
-        statusIcon = Icons.block;
-        adviceText = "This message is definitely a scam. It matches known phishing patterns perfectly. Do not click any links or reply.";
-      } 
-      else if (confidence >= 0.75) {
-        // TIER 2: HIGH RISK (75% - 89%) -> Covers your 83% case
-        statusColor = Colors.red;
-        statusText = "DANGER: High Risk";
-        statusIcon = Icons.gpp_bad;
-        adviceText = "This message is highly likely to be a scam. Do not click any links or reply.";
-      } 
-      else {
-        // TIER 3: SUSPICIOUS (50% - 74%)
-        statusColor = Colors.orange;
-        statusText = "WARNING: Suspicious";
-        statusIcon = Icons.warning_amber_rounded;
-        adviceText = "This message looks unusual. It shares some characteristics with spam. Verify with the sender before taking action.";
-      }
-    }
+    final int percentage = (displayConfidence * 100).toInt();
+    
+    // UI Colors & Icons
+    final Color themeColor = isPhishing ? Colors.red : Colors.green;
+    final String statusText = isPhishing ? "Phishing Detected" : "Safe Message";
+    final IconData statusIcon = isPhishing ? Icons.warning_amber_rounded : Icons.check_circle_outline;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -65,132 +37,139 @@ class ScanResultPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 30.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    SizedBox(height: 10),
-                    
-                    // 1. BIG CIRCULAR GAUGE
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SizedBox(
-                          width: 200,
-                          height: 200,
-                          child: CircularProgressIndicator(
-                            value: displayConfidence,
-                            strokeWidth: 20,
-                            backgroundColor: Colors.grey[100],
-                            color: statusColor,
-                          ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: 20),
+                  // 1. CIRCULAR INDICATOR
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox(
+                        width: 200,
+                        height: 200,
+                        child: CircularProgressIndicator(
+                          value: displayConfidence, 
+                          strokeWidth: 20,
+                          backgroundColor: Colors.grey.shade100,
+                          color: themeColor,
                         ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "${(displayConfidence * 100).toInt()}%",
-                              style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: statusColor),
-                            ),
-                            Text("Confidence", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 40),
-
-                    // 2. STATUS TITLE
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(statusIcon, color: statusColor, size: 30),
-                        SizedBox(width: 10),
-                        Text(
-                          statusText,
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: statusColor),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: 20),
-
-                    // 3. SCANNED MESSAGE PREVIEW
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(15),
-                        border: Border.all(color: Colors.grey[200]!),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text("Analyzed Content:", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          SizedBox(height: 5),
                           Text(
-                            message,
-                            maxLines: 4,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontStyle: FontStyle.italic, color: Colors.black87),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    SizedBox(height: 20),
-
-                    // 4. ACTIONABLE ADVICE
-                    Container(
-                      padding: EdgeInsets.all(20),
-                      margin: EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        color: statusColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.info_outline, color: statusColor),
-                          SizedBox(width: 15),
-                          Expanded(
-                            child: Text(
-                              adviceText,
-                              style: TextStyle(color: Colors.black87, height: 1.4),
+                            "$percentage%",
+                            style: TextStyle(
+                              fontSize: 48, 
+                              fontWeight: FontWeight.bold, 
+                              color: themeColor
                             ),
                           ),
+                          Text(
+                            "Confidence",
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                          ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            // 5. DONE BUTTON
-            Padding(
-              padding: const EdgeInsets.all(30.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: statusColor,
-                    padding: EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    ],
                   ),
-                  child: Text("Done", style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
+                  
+                  SizedBox(height: 40),
+
+                  // 2. STATUS LABEL
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(statusIcon, color: themeColor, size: 32),
+                      SizedBox(width: 10),
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          fontSize: 24, 
+                          fontWeight: FontWeight.bold, 
+                          color: themeColor
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 30),
+
+                  // 3. SCROLLABLE MESSAGE CONTENT
+                  Container(
+                    padding: EdgeInsets.all(20),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Analyzed Content:", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        SizedBox(height: 8),
+                        Text(
+                          message,
+                          style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: 20),
+
+                  // 4. EXPLANATION BOX
+                  Container(
+                    padding: EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: themeColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: themeColor),
+                        SizedBox(width: 15),
+                        Expanded(
+                          child: Text(
+                            isPhishing
+                                ? "This message contains patterns commonly used in financial scams."
+                                : "No phishing patterns detected. However, always stay vigilant.",
+                            style: TextStyle(color: Colors.black87),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 30),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+
+          // 5. DONE BUTTON
+          Padding(
+            padding: const EdgeInsets.all(30.0),
+            child: SizedBox(
+              width: double.infinity,
+              height: 55,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                ),
+                child: Text("Done", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
