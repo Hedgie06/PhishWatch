@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
+import 'privacy_policy_page.dart'; // 🔴 1. IMPORT THE NEW PAGE
 
 class SettingsPage extends StatelessWidget {
   @override
@@ -40,9 +41,6 @@ class SettingsPage extends StatelessWidget {
 
               SizedBox(height: 25),
 
-              // 🔴 DELETED: The "Data" section is gone.
-              // We moved the Delete button to the Activity Page where it belongs.
-
               // 2. ABOUT SECTION
               _buildSectionHeader("About"),
               Container(
@@ -58,12 +56,19 @@ class SettingsPage extends StatelessWidget {
                       onTap: () {}, 
                     ),
                     _buildDivider(),
+                    
+                    // 🔴 2. UPDATED: LINK TO PRIVACY PAGE
                     _buildActionTile(
                       context,
                       title: "Privacy Policy",
                       icon: Icons.shield_outlined,
                       iconColor: Colors.teal,
-                      onTap: () {}, 
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => PrivacyPolicyPage()),
+                        );
+                      }, 
                     ),
                     
                     // Hidden Developer Stats (Subtle)
@@ -92,7 +97,7 @@ class SettingsPage extends StatelessWidget {
               
               SizedBox(height: 40),
               Center(
-                child: Text("Designed for FYP 2025", style: TextStyle(color: Colors.grey.shade400, fontSize: 12, letterSpacing: 1.0)),
+                child: Text("Malay Phishing Dataset Model", style: TextStyle(color: Colors.grey.shade400, fontSize: 12, letterSpacing: 1.0)),
               ),
             ],
           ),

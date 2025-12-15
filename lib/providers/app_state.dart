@@ -29,6 +29,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool _notificationsEnabled = true;
   bool get notificationsEnabled => _notificationsEnabled;
 
+  // 🔴 1. NEW: Terms of Service State
+  bool _termsAccepted = false;
+  bool get termsAccepted => _termsAccepted;
+
   AppState({
     required this.notificationService,
     required this.apiService,
@@ -37,6 +41,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     // Run permission check in background on startup
     _syncPermissionState(); 
+    // You can also load the terms accepted state from storage here in the future
   }
 
   @override
@@ -50,6 +55,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _syncPermissionState();
     }
+  }
+
+  // 🔴 2. NEW: Accept Terms Function
+  void acceptTerms() {
+    _termsAccepted = true;
+    notifyListeners();
+    // In a real app, you would save this to StorageService here:
+    // storageService.saveBool('terms_accepted', true);
   }
 
   Future<void> _syncPermissionState() async {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
-
-// Import your new view files
 import 'library_page.dart';
 import 'home_dashboard.dart';
 import 'activity_page.dart';
@@ -43,13 +41,8 @@ class _HomeScreenState extends State<HomeScreen> {
 bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        
-        // ----------------------------------------------------
-        // 🔴 FIX: Force background to White to remove pink tint
         backgroundColor: Colors.white, 
-        // ----------------------------------------------------
-        
-        selectedItemColor: Color(0xFF229ED9), // Your App Blue
+        selectedItemColor: Color(0xFF229ED9), 
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
