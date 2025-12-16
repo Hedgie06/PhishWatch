@@ -4,7 +4,7 @@ class LibraryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFFFAFAFA), // Main scaffold background
+      backgroundColor: Color(0xFFFAFAFA), // Main background
       appBar: AppBar(
         title: Text("Learn Common Tactics", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 18)),
         backgroundColor: Colors.white,
@@ -17,9 +17,7 @@ class LibraryPage extends StatelessWidget {
           children: [
             SizedBox(height: 20),
 
-            // ===========================================
             // SECTION 1: HEADER
-            // ===========================================
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -42,23 +40,19 @@ class LibraryPage extends StatelessWidget {
             ),
             SizedBox(height: 20),
 
-            // ===========================================
-            // THE TELEGRAM CHAT SIMULATION
-            // ===========================================
+            // THE CHAT CARD
             Container(
               margin: EdgeInsets.symmetric(horizontal: 15), 
               padding: EdgeInsets.symmetric(vertical: 20, horizontal: 15),
               decoration: BoxDecoration(
-                // 🔴 1. BACKGROUND COLOR CHANGED TO 0xFFF5F7FA (Light Grey)
-                color: Color(0xFFF5F7FA), 
+                color: Color(0xFFF5F7FA), // Grey Background
                 borderRadius: BorderRadius.circular(15),
-                // Optional: Add a subtle border or shadow to separate it from the white background
                 border: Border.all(color: Colors.grey.shade200),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Fake Sender Info Header
+                  // Fake Sender Info
                   Row(
                     children: [
                       CircleAvatar(
@@ -70,7 +64,6 @@ class LibraryPage extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 🔴 2. PHONE NUMBER UPDATED
                           Text("+601X-XXXX XXXX", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
                           Text("online", style: TextStyle(fontSize: 12, color: Colors.blue)),
                         ],
@@ -79,11 +72,10 @@ class LibraryPage extends StatelessWidget {
                   ),
                   SizedBox(height: 20),
 
-                  // THE REALISTIC TELEGRAM BUBBLE WITH TAIL
+                  // The Telegram Bubble
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // The tiny tail on the left (Wrapped in Padding)
                       Padding(
                         padding: const EdgeInsets.only(top: 0), 
                         child: CustomPaint(
@@ -92,14 +84,13 @@ class LibraryPage extends StatelessWidget {
                         ),
                       ),
                       
-                      // The main bubble
                       Expanded(
                         child: Container(
                           padding: EdgeInsets.only(left: 10, right: 10, top: 8, bottom: 5),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.only(
-                              topLeft: Radius.zero, // Connects to tail
+                              topLeft: Radius.zero,
                               topRight: Radius.circular(12),
                               bottomLeft: Radius.circular(12),
                               bottomRight: Radius.circular(12),
@@ -111,18 +102,15 @@ class LibraryPage extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Sender Name inside bubble
-                              Text(
-                                "+601X-XXXX XXXX", // Updated inside bubble too
-                                style: TextStyle(color: Color(0xFF498FD5), fontWeight: FontWeight.bold, fontSize: 13)
-                              ),
                               Text(
                                 "Forwarded message", 
-                                style: TextStyle(color: Colors.grey.shade500, fontSize: 11, fontStyle: FontStyle.italic)
+                                style: TextStyle(color: Color(0xFF3390EC), fontSize: 12, fontStyle: FontStyle.italic)
                               ),
-                              SizedBox(height: 5),
-                              
-                              // Content
+                              Text(
+                                "From +601X-XXXX XXXX", 
+                                style: TextStyle(color: Color(0xFF3390EC), fontWeight: FontWeight.bold, fontSize: 13)
+                              ),
+                              SizedBox(height: 6),
                               Text(
                                 """🎊🎉Bantuan Ramadhan 2025 : Cara Mohon & Syarat Kelayakan
 
@@ -134,9 +122,7 @@ https://berkaramadan02.v11-2025.my.id/
 JOM 🗣 "SHARE" Bantuan Ini ke family and kawan-kawan TQ""",
                                 style: TextStyle(fontSize: 14, height: 1.3, color: Colors.black),
                               ),
-                              
                               SizedBox(height: 4),
-                              // Timestamp tucked in corner
                               Align(
                                 alignment: Alignment.bottomRight,
                                 child: Text("2:30 PM", style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
@@ -148,18 +134,13 @@ JOM 🗣 "SHARE" Bantuan Ini ke family and kawan-kawan TQ""",
                     ],
                   ),
                   
-                  // Source Watermark
                   SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Icon(Icons.bookmark_border, size: 12, color: Colors.grey.shade600),
-                      SizedBox(width: 4),
-                      Text(
-                        "Source: AsamAlert group",
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic, fontWeight: FontWeight.w500),
-                      ),
-                    ],
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "Source: AsamAlert group",
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                    ),
                   ),
                 ],
               ),
@@ -169,7 +150,7 @@ JOM 🗣 "SHARE" Bantuan Ini ke family and kawan-kawan TQ""",
             Divider(indent: 20, endIndent: 20),
             SizedBox(height: 10),
 
-            // The "Forensic" Analysis
+            // ANALYSIS SECTION
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text("⚠️ BREAKDOWN", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
@@ -180,28 +161,16 @@ JOM 🗣 "SHARE" Bantuan Ini ke family and kawan-kawan TQ""",
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
-                  _buildAnalysisPoint(
-                    "1", 
-                    "Unofficial Domain (.my.id)", 
-                    "Inspect the URL. Official Malaysian government aid portals always end with '.gov.my'. This link uses a foreign country code (.id). This mismatch is a guaranteed red flag."
-                  ),
-                  _buildAnalysisPoint(
-                    "2", 
-                    "Unrealistic Eligibility", 
-                    "Claims 'semua rakyat boleh dapat' (everyone gets it) are a psychological hook. Real government aid targets specific groups (e.g., B40) and always requires a formal database check."
-                  ),
-                  _buildAnalysisPoint(
-                    "3", 
-                    "Viral Mechanics", 
-                    "The instruction to 'SHARE' to family is a 'Viral Loop'. Scammers use your trusted network to spread the malicious link, knowing your family is more likely to click if you sent it."
-                  ),
+                  _buildAnalysisPoint("1", "Unofficial Domain (.my.id)", "Inspect the URL. Official Malaysian government aid portals always end with '.gov.my'. This link uses '.my.id', a foreign domain."),
+                  _buildAnalysisPoint("2", "Unrealistic Eligibility", "Claims 'semua rakyat boleh dapat' are false. Real aid targets specific groups (B40) and requires database checks."),
+                  _buildAnalysisPoint("3", "Viral Mechanics", "Demands you 'SHARE' to friends. This is how malware spreads via trusted networks."),
                 ],
               ),
             ),
 
             SizedBox(height: 30),
-            
-            // SECTION 2: COLLAPSIBLE DEFENSE GUIDE
+
+            // 🔴 RESTORED: SECTION 2 - DEFENSE GUIDE
             Theme(
               data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
               child: ExpansionTile(
@@ -215,13 +184,13 @@ JOM 🗣 "SHARE" Bantuan Ini ke family and kawan-kawan TQ""",
                       Expanded(child: _buildDetailTipCard(
                         Icons.link, 
                         "Check The URL", 
-                        "Hover before you click. Look for strange domains or misspellings (e.g., 'bank-secure-login.com'). If in doubt, type the official address yourself."
+                        "Hover before you click. Look for strange domains or misspellings (e.g., 'bank-secure-login.com')."
                       )),
                       SizedBox(width: 15),
                       Expanded(child: _buildDetailTipCard(
                         Icons.access_time, 
                         "Ignore Urgency", 
-                        "Scammers use fear ('Your account will be locked!'). Official organizations never pressure you to act instantly via text message."
+                        "Scammers use fear ('Your account will be locked!'). Official organizations never pressure you to act instantly."
                       )),
                     ],
                   ),
@@ -232,13 +201,13 @@ JOM 🗣 "SHARE" Bantuan Ini ke family and kawan-kawan TQ""",
                       Expanded(child: _buildDetailTipCard(
                         Icons.share, 
                         "Verify First", 
-                        "Just because a friend sent it doesn't mean it's safe. Their device might be compromised. Always verify with official news sources."
+                        "Just because a friend sent it doesn't mean it's safe. Their device might be compromised. Verify with official sources."
                       )),
                       SizedBox(width: 15),
                       Expanded(child: _buildDetailTipCard(
                         Icons.money_off, 
                         "No Free Money", 
-                        "Legitimate aid is never claimed via unofficial online forms or personal messaging apps. It always requires logging into a secure government portal."
+                        "Legitimate aid is never claimed via unofficial online forms or messaging apps."
                       )),
                     ],
                   ),
@@ -254,7 +223,34 @@ JOM 🗣 "SHARE" Bantuan Ini ke family and kawan-kawan TQ""",
     );
   }
 
-  // --- HELPER: DETAILED TIPS ---
+  Widget _buildAnalysisPoint(String number, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24, height: 24,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+            child: Text(number, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                SizedBox(height: 4),
+                Text(description, style: TextStyle(color: Colors.grey.shade700, fontSize: 13, height: 1.5)),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
   Widget _buildDetailTipCard(IconData icon, String title, String subtitle) {
     return Container(
       padding: EdgeInsets.all(15),
@@ -279,58 +275,20 @@ JOM 🗣 "SHARE" Bantuan Ini ke family and kawan-kawan TQ""",
       ),
     );
   }
-
-  // --- HELPER: ANALYSIS POINTS ---
-  Widget _buildAnalysisPoint(String number, String title, String description) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20), 
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 24, height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.black,
-              shape: BoxShape.circle,
-            ),
-            child: Text(number, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                SizedBox(height: 4),
-                Text(description, style: TextStyle(color: Colors.grey.shade700, fontSize: 13, height: 1.5)), 
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
 }
 
-// THE PAINTER: Creates the bottom-left tail for Telegram bubble
 class _TelegramTailPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    var paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
+    var paint = Paint()..color = Colors.white..style = PaintingStyle.fill;
     var path = Path();
-    path.moveTo(0, size.height); // Bottom left point
-    path.lineTo(size.width, size.height); // Bottom right point
-    path.lineTo(size.width, 0); // Top right point
+    path.moveTo(0, size.height);
+    path.lineTo(size.width, size.height);
+    path.lineTo(size.width, 0);
     path.quadraticBezierTo(size.width / 2, size.height / 2, 0, size.height);
     path.close();
-
     canvas.drawPath(path, paint);
   }
-
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

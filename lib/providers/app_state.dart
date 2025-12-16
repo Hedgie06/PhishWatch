@@ -17,12 +17,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   final NotificationService notificationService;
   final ApiService apiService;
   final StorageService storageService;
-  final GlobalKey<NavigatorState> navigatorKey; // 🔴 NEW
+  final GlobalKey<NavigatorState> navigatorKey;
 
   bool listenerEnabled = false;
   bool serviceRunning = false;
   StreamSubscription<Map<String, dynamic>>? _subscription;
-  // 🔴 NEW: Connectivity Subscription
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   bool _isOfflineDialogShowing = false;
 
@@ -42,17 +41,18 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     required this.notificationService,
     required this.apiService,
     required this.storageService,
-    required this.navigatorKey, // 🔴 NEW
+    required this.navigatorKey,
   }) {
     WidgetsBinding.instance.addObserver(this);
     _loadPersistence();
-    _initConnectivityListener(); // 🔴 Start Monitoring
+    _initConnectivityListener();
+    _syncPermissionState(); 
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _connectivitySubscription?.cancel(); // Clean up
+    _connectivitySubscription?.cancel();
     super.dispose();
   }
 
@@ -63,12 +63,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // 🔴 1. GLOBAL CONNECTIVITY MONITOR
   void _initConnectivityListener() {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
-      // Check if ANY connection is available
       bool isConnected = results.any((r) => r != ConnectivityResult.none);
-
       if (!isConnected && !_isOfflineDialogShowing) {
         _showPersistentOfflineDialog();
       } else if (isConnected && _isOfflineDialogShowing) {
@@ -77,7 +74,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     });
   }
 
-  // 🔴 2. SHOW BLOCKING DIALOG
   void _showPersistentOfflineDialog() {
     final context = navigatorKey.currentContext;
     if (context == null) return;
@@ -85,9 +81,9 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _isOfflineDialogShowing = true;
     showDialog(
       context: context,
-      barrierDismissible: false, // User CANNOT close this by tapping outside
+      barrierDismissible: false,
       builder: (ctx) => WillPopScope(
-        onWillPop: () async => false, // User CANNOT close this by back button
+        onWillPop: () async => false,
         child: AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -99,7 +95,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             ],
           ),
           content: Text(
-            "PhishWatch requires an active internet connection to protect you.\n\nPlease reconnect to Wi-Fi or Mobile Data to continue.",
+            "PhishWatch requires an active internet connection to protect you.\n\nPlease reconnect to continue.",
             textAlign: TextAlign.center,
             style: TextStyle(height: 1.4),
           ),
@@ -108,17 +104,17 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     );
   }
 
-  // 🔴 3. HIDE DIALOG AUTOMATICALLY
   void _closeOfflineDialog() {
     final context = navigatorKey.currentContext;
     if (context != null && _isOfflineDialogShowing) {
-      Navigator.of(context, rootNavigator: true).pop(); // Close the top dialog
+      Navigator.of(context, rootNavigator: true).pop();
       _isOfflineDialogShowing = false;
     }
   }
 
   Future<void> _loadPersistence() async {
     _termsAccepted = await storageService.getTermsAccepted();
+    await loadHistory(); 
     notifyListeners();
   }
 
@@ -136,7 +132,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     PermissionStatus status = await Permission.notification.status;
-    if (status.isDenied || status.isPermanentlyDenied) {
+    if (!status.isGranted) {
       if (_notificationsEnabled) {
         _notificationsEnabled = false;
         notifyListeners();
@@ -144,46 +140,26 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // NOTE: This manual helper is still useful for initial checks, 
-  // but the Stream listener handles the global blocking.
   void _showTermsDialog(BuildContext context) {
     if (!context.mounted) return;
-    
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Row(
-          children: [
-            Icon(Icons.policy, color: Color(0xFF229ED9)),
-            SizedBox(width: 10),
-            Text("Agreement Required", style: TextStyle(fontSize: 18)),
-          ],
-        ),
-        content: Text(
-          "Before using PhishWatch, you must read and accept our Privacy Policy and Terms of Service.",
-          style: TextStyle(height: 1.4),
-        ),
+        title: Text("Agreement Required"),
+        content: Text("Please accept the Terms of Service to continue."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text("Cancel", style: TextStyle(color: Colors.grey)),
+            child: Text("Cancel"),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx); 
-              Navigator.push(
-                context, 
-                MaterialPageRoute(builder: (_) => PrivacyPolicyPage())
-              );
+              Navigator.push(context, MaterialPageRoute(builder: (_) => PrivacyPolicyPage()));
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Color(0xFF229ED9),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-            child: Text("Go to Policy", style: TextStyle(color: Colors.white)),
+            child: Text("Read Policy"),
           ),
         ],
       ),
@@ -194,28 +170,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _totalThreatsIntercepted++;
     notifyListeners();
 
+    if (_notificationsEnabled) {
+      AlertService.showDangerAlert("Phishing Detected!", "Suspicious message from $source");
+    }
+
     Future(() async {
       try {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) await FirebaseAuth.instance.signInAnonymously();
-
-        final batch = FirebaseFirestore.instance.batch();
-        final statsRef = FirebaseFirestore.instance.collection('app_stats').doc('global_counts');
-        batch.set(statsRef, {'phishing_detected': FieldValue.increment(1)}, SetOptions(merge: true));
-
-        final threatRef = FirebaseFirestore.instance.collection('detected_threats').doc();
-        batch.set(threatRef, {
+        await FirebaseFirestore.instance.collection('detected_threats').add({
           'text': message,
           'source': source,
           'timestamp': FieldValue.serverTimestamp(),
-          'detected_by': 'auto_system',
         });
-
-        await batch.commit();
-        if (kDebugMode) print("🚀 Threat uploaded in background.");
-      } catch (e) {
-        if (kDebugMode) print("⚠️ Background upload failed: $e");
-      }
+      } catch (e) {}
     });
   }
 
@@ -229,14 +197,16 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       PermissionStatus status = await Permission.notification.request();
       if (status.isGranted) {
         _notificationsEnabled = true;
-        notifyListeners();
       } else {
-        // Show permission dialog (omitted for brevity, same as before)
+        _notificationsEnabled = false;
+        if (context.mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Permission denied. Enable notifications in settings.")));
+        }
       }
     } else {
       _notificationsEnabled = false;
-      notifyListeners();
     }
+    notifyListeners();
   }
 
   Future<void> startListening(BuildContext context) async {
@@ -245,16 +215,48 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       return; 
     }
 
-    // Note: We don't strictly need _checkConnectivity here anymore 
-    // because the global dialog will block the UI if offline anyway.
-    
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity.contains(ConnectivityResult.none)) return;
+
     bool hasPermission = await notificationService.isListenerEnabled();
+    
     if (!hasPermission) {
       if (context.mounted) {
-        // Show permission dialog (omitted for brevity, same as before)
-        // You can copy the permission dialog code back if you deleted it accidentally
-        // or just rely on the openListenerSettings() call.
-        await notificationService.openListenerSettings(); // simplified for brevity
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            title: Row(
+              children: [
+                Icon(Icons.security_update_warning_outlined, color: Colors.orange),
+                SizedBox(width: 10),
+                Text("Permission Needed", style: TextStyle(fontSize: 18)),
+              ],
+            ),
+            content: Text(
+              "To detect scams in real-time, PhishWatch needs 'Notification Access'.\n\nPlease find 'PhishWatch' in the list and turn it ON.",
+              style: TextStyle(height: 1.4),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text("Cancel", style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await notificationService.openListenerSettings();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF229ED9),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: Text("Go to Settings", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
       }
       return; 
     }
@@ -262,60 +264,53 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     if (listenerEnabled) return;
     
     await notificationService.startService(); 
-    
     listenerEnabled = true;
     serviceRunning = true;
     notifyListeners();
 
     _subscription = notificationService.notificationStream.listen((data) async {
-      final message = data['text'] ?? data['message'] ?? ''; 
-      final app = data['app'] ?? data['package'] ?? 'Unknown'; 
-      final title = data['title'] ?? ''; 
-
-      if (message.contains("new messages") || message.contains("WhatsApp Web")) return; 
-      if (!app.toString().toLowerCase().contains('telegram') && app != 'Manual Scan') return; 
+      final message = data['text'] ?? '';
+      final title = data['title'] ?? ''; // This is usually the Sender Name
+      
+      // 🛑 1. FILTERING LOGIC (New)
+      // Block generic summaries like "596 new messages" or sender "Telegram"
+      if (title == "Telegram" || title == "WhatsApp") return; 
+      if (message.contains("new messages") || message.contains("messages from")) return;
       if (message.isEmpty) return;
 
+      // 🛑 2. DEDUPLICATION (Prevent spamming the same log)
       final isDuplicate = _detections.any((item) {
-        final isSameSender = item.app == title; 
+        final isSameSender = item.app == title;
         final isSameContent = item.message == message;
-        final isRecent = DateTime.now().difference(item.timestamp).inMinutes < 5; 
+        // Check if same message received within last 5 minutes
+        final isRecent = DateTime.now().difference(item.timestamp).inMinutes < 5;
         return isSameSender && isSameContent && isRecent;
       });
 
-      if (isDuplicate) return; 
+      if (isDuplicate) return;
 
+      // 🛑 3. PROCEED TO AI
       try {
         final result = await apiService.classifyMessage(message);
         final isPhishing = result['prediction'].toString().toLowerCase() == 'spam';
-        final confidence = result['spam_probability'] as double;
-
+        
         if (isPhishing) {
-          if (_notificationsEnabled) {
-            AlertService.showDangerAlert(
-              "Phishing Detected!", 
-              "Suspicious message from $title"
-            );
-          }
-          _handlePhishingDetection(message, "Notification: $app");
+            _handlePhishingDetection(message, title);
         }
-
+        
         final detection = DetectionItem(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          app: title, 
-          message: message,
-          isPhishing: isPhishing, 
-          confidence: confidence,
-          timestamp: DateTime.now(),
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            app: title,
+            message: message,
+            isPhishing: isPhishing,
+            confidence: result['spam_probability'] as double,
+            timestamp: DateTime.now(),
         );
-
         _detections.insert(0, detection);
         await storageService.saveDetection(detection);
         notifyListeners();
-        
-      } catch (e) {
-        if (kDebugMode) print('Error processing: $e');
-      }
+
+      } catch(e) {}
     });
   }
 
@@ -329,37 +324,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> submitReport(BuildContext context, String message) async {
     if (message.isEmpty) return;
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) await FirebaseAuth.instance.signInAnonymously();
-
-      await FirebaseFirestore.instance.collection('reports').add({
-        'text': message,
-        'timestamp': FieldValue.serverTimestamp(),
-        'platform': 'Phishwatch',
-      });
-      if (kDebugMode) print("✅ Report sent!");
-    } catch (e) {
-      if (kDebugMode) print("❌ Error sending report: $e");
-      rethrow; 
-    }
-  }
-
-  Future<void> loadGlobalStats() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('app_stats')
-          .doc('global_counts')
-          .get()
-          .timeout(Duration(seconds: 3)); 
-
-      if (doc.exists) {
-        _totalThreatsIntercepted = doc.data()?['phishing_detected'] ?? 0;
-        notifyListeners();
-      }
-    } catch (e) {
-      if (kDebugMode) print("Error loading stats (non-fatal): $e");
-    }
+    await FirebaseFirestore.instance.collection('reports').add({
+      'text': message,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<DetectionItem?> manualScan(BuildContext context, String text) async {
@@ -367,13 +335,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       _showTermsDialog(context);
       return null; 
     }
-
-    if (text.isEmpty) return null;
+    
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity.contains(ConnectivityResult.none)) return null;
 
     try {
       final result = await apiService.classifyMessage(text);
-      if (kDebugMode) print("🔍 API RETURNED: $result"); 
-
       final isPhishing = result['prediction'].toString().toLowerCase() == 'spam';
       final confidence = result['spam_probability'] as double;
 
@@ -392,9 +359,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       return detection; 
 
     } catch (e) {
-      if (kDebugMode) print('❌ Error manual scan: $e');
       return null;
     }
+  }
+
+  Future<void> loadGlobalStats() async {
+    // Placeholder if you need global stats later
   }
 
   Future<void> loadHistory() async {
@@ -402,10 +372,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     _detections
       ..clear()
       ..addAll(history);
-    
-    loadGlobalStats(); 
-    _syncPermissionState();
-    
     notifyListeners();
   }
  

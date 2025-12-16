@@ -8,15 +8,14 @@ import 'services/storage_service.dart';
 import 'views/home_dashboard.dart';
 import 'views/settings_page.dart';
 import 'views/activity_page.dart';
+import 'views/onboarding_page.dart'; // 🔴 1. IMPORT
 
-// 🔴 1. GLOBAL KEY DEFINITION
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // Initialize Services
   final notificationService = NotificationService();
   final apiService = ApiService();
   final storageService = StorageService();
@@ -29,7 +28,7 @@ void main() async {
             notificationService: notificationService,
             apiService: apiService,
             storageService: storageService,
-            navigatorKey: navigatorKey, // 🔴 2. PASS KEY TO STATE
+            navigatorKey: navigatorKey,
           ),
         ),
       ],
@@ -61,7 +60,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, // 🔴 3. ASSIGN KEY TO APP
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'PhishWatch',
       theme: ThemeData(
@@ -69,23 +68,35 @@ class _MyAppState extends State<MyApp> {
         scaffoldBackgroundColor: Color(0xFFF5F7FA),
         useMaterial3: true,
       ),
-      home: Scaffold(
-        body: _pages[_selectedIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Activity'),
-            BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-          ],
-          currentIndex: _selectedIndex,
-          selectedItemColor: Color(0xFF229ED9),
-          unselectedItemColor: Colors.grey,
-          showUnselectedLabels: true,
-          onTap: _onItemTapped,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          elevation: 0,
-        ),
+      // 🔴 2. DYNAMIC HOME SCREEN
+      // Listens to AppState. If termsAccepted is false -> Onboarding.
+      home: Consumer<AppState>(
+        builder: (context, appState, child) {
+          // If Terms/Onboarding NOT accepted yet -> Show Onboarding
+          if (!appState.termsAccepted) {
+            return OnboardingPage();
+          }
+
+          // Otherwise -> Show Main App Layout
+          return Scaffold(
+            body: _pages[_selectedIndex],
+            bottomNavigationBar: BottomNavigationBar(
+              items: const <BottomNavigationBarItem>[
+                BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'Home'),
+                BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Activity'),
+                BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+              ],
+              currentIndex: _selectedIndex,
+              selectedItemColor: Color(0xFF229ED9),
+              unselectedItemColor: Colors.grey,
+              showUnselectedLabels: true,
+              onTap: _onItemTapped,
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: Colors.white,
+              elevation: 0,
+            ),
+          );
+        },
       ),
     );
   }
