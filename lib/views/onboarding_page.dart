@@ -14,11 +14,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   List<Widget> _buildPages() {
     return [
-      // PAGE 1: WELCOME
+      // PAGE 1: WELCOME (Now using your Custom Logo)
       _buildPage(
-        icon: Icons.shield_outlined,
+        imagePath: 'assets/icon/app_icon.png', // 🔴 1. Uses your custom logo
         title: "Welcome to PhishWatch",
-        // 🔴 1. TEXT UPDATED: Telegram & Malay Language focus
         description: "Your intelligent guardian against Telegram scams. Specifically designed for detecting threats in the Malay language.",
       ),
       // PAGE 2: HOW IT WORKS
@@ -98,7 +97,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 height: 55,
                 child: _currentIndex == pages.length - 1
                     ? ElevatedButton(
-                        // 🔴 2. LOGIC CHANGE: Open Privacy Policy instead of instant accept
+                        // Open Privacy Policy instead of instant accept
                         onPressed: () {
                           Navigator.push(
                             context, 
@@ -135,9 +134,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // --- HELPER: BUILD SINGLE SLIDE ---
+  // --- 🔴 2. UPDATED HELPER WIDGET ---
   Widget _buildPage({
-    required IconData icon,
+    IconData? icon,
+    String? imagePath, // Added optional image path
     required String title,
     required String description,
     bool isLastPage = false,
@@ -153,7 +153,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
               color: Color(0xFFF5F7FA),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 100, color: Color(0xFF229ED9)),
+            // 🔴 3. LOGIC: Show Image if provided, otherwise show Icon
+            child: imagePath != null
+                ? Image.asset(
+                    imagePath,
+                    width: 100, // Matching the previous icon size
+                    height: 100,
+                  )
+                : Icon(icon, size: 100, color: Color(0xFF229ED9)),
           ),
           SizedBox(height: 40),
           Text(
