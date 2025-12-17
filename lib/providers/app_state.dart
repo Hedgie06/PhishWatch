@@ -23,7 +23,11 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool serviceRunning = false;
   StreamSubscription<Map<String, dynamic>>? _subscription;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  
+  Timer? _apiHealthTimer; 
+
   bool _isOfflineDialogShowing = false;
+  bool _isApiDialogShowing = false; 
 
   final List<DetectionItem> _detections = [];
   List<DetectionItem> get detections => List.unmodifiable(_detections);
@@ -53,6 +57,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
+    _apiHealthTimer?.cancel(); 
     super.dispose();
   }
 
@@ -60,18 +65,105 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _syncPermissionState();
+      _checkApiHealthNow(); 
+    } else if (state == AppLifecycleState.paused) {
+      _apiHealthTimer?.cancel(); 
     }
   }
 
+  // --- CONNECTIVITY & HEALTH LOGIC ---
   void _initConnectivityListener() {
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
       bool isConnected = results.any((r) => r != ConnectivityResult.none);
-      if (!isConnected && !_isOfflineDialogShowing) {
-        _showPersistentOfflineDialog();
-      } else if (isConnected && _isOfflineDialogShowing) {
-        _closeOfflineDialog();
+      
+      if (!isConnected) {
+        // LOST INTERNET
+        _apiHealthTimer?.cancel(); 
+        _closeApiErrorDialog(); 
+        if (!_isOfflineDialogShowing) _showPersistentOfflineDialog();
+      } else {
+        // INTERNET RESTORED
+        if (_isOfflineDialogShowing) _closeOfflineDialog();
+        _startHealthCheckLoop(); 
       }
     });
+  }
+
+  void _startHealthCheckLoop() {
+      _apiHealthTimer?.cancel();
+      _checkApiHealthNow();
+      // 🔴 CHANGED: 5 seconds for faster feedback
+      _apiHealthTimer = Timer.periodic(Duration(seconds: 5), (_) => _checkApiHealthNow());
+  }
+
+  Future<void> _checkApiHealthNow() async {
+    if (_isOfflineDialogShowing) return; 
+
+    bool isApiUp = await apiService.checkHealth();
+
+    if (!isApiUp && !_isApiDialogShowing) {
+      _showApiErrorDialog();
+    } else if (isApiUp && _isApiDialogShowing) {
+      _closeApiErrorDialog();
+    }
+  }
+
+  // 🔴 UPDATED: API ERROR DIALOG (New Text & Button Style)
+  void _showApiErrorDialog() {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    _isApiDialogShowing = true;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Column(
+            children: [
+              Icon(Icons.cloud_off, color: Colors.orange, size: 40),
+              SizedBox(height: 10),
+              Text("Server Unavailable", style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            "We are encountering a problem in our analysis server. Be patient while we are trying to fix this.\n\nPhishWatch will automatically reconnect once everything is fixed.",
+            textAlign: TextAlign.center,
+            style: TextStyle(height: 1.4),
+          ),
+          actions: [
+            Center(
+              child: SizedBox(
+                width: double.infinity, // Make button span width
+                child: ElevatedButton(
+                  onPressed: () {
+                    _closeApiErrorDialog();
+                    _checkApiHealthNow();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF229ED9), // Blue Color
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text("Retry Now", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _closeApiErrorDialog() {
+    final context = navigatorKey.currentContext;
+    if (context != null && _isApiDialogShowing) {
+      Navigator.of(context, rootNavigator: true).pop();
+      _isApiDialogShowing = false;
+    }
   }
 
   void _showPersistentOfflineDialog() {
@@ -114,6 +206,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _loadPersistence() async {
     _termsAccepted = await storageService.getTermsAccepted();
+    
+    // Load Toggle Preference
+    bool storedPreference = await storageService.getNotificationPreference();
+    PermissionStatus status = await Permission.notification.status;
+    
+    if (storedPreference && (status.isGranted || status.isLimited)) {
+      _notificationsEnabled = true;
+    } else {
+      _notificationsEnabled = false;
+      if (storedPreference) {
+         await storageService.saveNotificationPreference(false);
+      }
+    }
+
     await loadHistory(); 
     notifyListeners();
   }
@@ -132,11 +238,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
 
     PermissionStatus status = await Permission.notification.status;
-    if (!status.isGranted) {
-      if (_notificationsEnabled) {
-        _notificationsEnabled = false;
-        notifyListeners();
-      }
+    if (!status.isGranted && _notificationsEnabled) {
+      _notificationsEnabled = false;
+      await storageService.saveNotificationPreference(false);
+      notifyListeners();
     }
   }
 
@@ -206,6 +311,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     } else {
       _notificationsEnabled = false;
     }
+    
+    await storageService.saveNotificationPreference(_notificationsEnabled);
     notifyListeners();
   }
 
@@ -270,26 +377,22 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
     _subscription = notificationService.notificationStream.listen((data) async {
       final message = data['text'] ?? '';
-      final title = data['title'] ?? ''; // This is usually the Sender Name
+      final title = data['title'] ?? ''; 
       
-      // 🛑 1. FILTERING LOGIC (New)
-      // Block generic summaries like "596 new messages" or sender "Telegram"
+      // Filter logic
       if (title == "Telegram" || title == "WhatsApp") return; 
       if (message.contains("new messages") || message.contains("messages from")) return;
       if (message.isEmpty) return;
 
-      // 🛑 2. DEDUPLICATION (Prevent spamming the same log)
       final isDuplicate = _detections.any((item) {
         final isSameSender = item.app == title;
         final isSameContent = item.message == message;
-        // Check if same message received within last 5 minutes
         final isRecent = DateTime.now().difference(item.timestamp).inMinutes < 5;
         return isSameSender && isSameContent && isRecent;
       });
 
       if (isDuplicate) return;
 
-      // 🛑 3. PROCEED TO AI
       try {
         final result = await apiService.classifyMessage(message);
         final isPhishing = result['prediction'].toString().toLowerCase() == 'spam';
@@ -364,7 +467,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> loadGlobalStats() async {
-    // Placeholder if you need global stats later
   }
 
   Future<void> loadHistory() async {

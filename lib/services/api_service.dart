@@ -9,12 +9,26 @@ class ApiService {
     if (customBaseUrl != null) {
       baseUrl = customBaseUrl;
     } else if (Platform.isAndroid) {
-      // For physical device via USB debugging
+      // For physical device via USB debugging or Emulator
+      // Note: If using Emulator, use "http://10.0.2.2:5000"
+      // If using Physical Device, use your PC's IP "http://192.168.x.x:5000"
       baseUrl = "http://172.20.10.6:5000"; 
     } else if (Platform.isWindows) {
       baseUrl = "http://127.0.0.1:5000";
     } else {
       baseUrl = "http://10.115.13.66:5000";
+    }
+  }
+
+  // 🔴 NEW: Health Check
+  Future<bool> checkHealth() async {
+    try {
+      // Ping the server to see if it's reachable
+      final response = await http.get(Uri.parse("$baseUrl/")).timeout(Duration(seconds: 5));
+      // If we get any response code (even 404), the server is at least "up"
+      return true;
+    } catch (e) {
+      return false; // Connection failed/Timeout
     }
   }
 
