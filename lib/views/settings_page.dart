@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
-import 'privacy_policy_page.dart'; // 🔴 1. IMPORT THE NEW PAGE
+import 'privacy_policy_page.dart'; 
 
 class SettingsPage extends StatelessWidget {
   @override
@@ -57,7 +57,6 @@ class SettingsPage extends StatelessWidget {
                     ),
                     _buildDivider(),
                     
-                    // 🔴 2. UPDATED: LINK TO PRIVACY PAGE
                     _buildActionTile(
                       context,
                       title: "Privacy Policy",

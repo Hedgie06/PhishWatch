@@ -77,12 +77,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       bool isConnected = results.any((r) => r != ConnectivityResult.none);
       
       if (!isConnected) {
-        // LOST INTERNET
         _apiHealthTimer?.cancel(); 
         _closeApiErrorDialog(); 
         if (!_isOfflineDialogShowing) _showPersistentOfflineDialog();
       } else {
-        // INTERNET RESTORED
         if (_isOfflineDialogShowing) _closeOfflineDialog();
         _startHealthCheckLoop(); 
       }
@@ -92,7 +90,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   void _startHealthCheckLoop() {
       _apiHealthTimer?.cancel();
       _checkApiHealthNow();
-      // 🔴 CHANGED: 5 seconds for faster feedback
       _apiHealthTimer = Timer.periodic(Duration(seconds: 5), (_) => _checkApiHealthNow());
   }
 
@@ -108,7 +105,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // 🔴 UPDATED: API ERROR DIALOG (New Text & Button Style)
   void _showApiErrorDialog() {
     final context = navigatorKey.currentContext;
     if (context == null) return;
@@ -137,14 +133,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
           actions: [
             Center(
               child: SizedBox(
-                width: double.infinity, // Make button span width
+                width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
                     _closeApiErrorDialog();
                     _checkApiHealthNow();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF229ED9), // Blue Color
+                    backgroundColor: Color(0xFF229ED9),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     padding: EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -207,7 +203,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _loadPersistence() async {
     _termsAccepted = await storageService.getTermsAccepted();
     
-    // Load Toggle Preference
     bool storedPreference = await storageService.getNotificationPreference();
     PermissionStatus status = await Permission.notification.status;
     
@@ -271,12 +266,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     );
   }
 
-  void _handlePhishingDetection(String message, String source) {
+  // 🔴 1. UPDATED SIGNATURE TO ACCEPT CONFIDENCE
+  void _handlePhishingDetection(String message, String source, double confidence) {
     _totalThreatsIntercepted++;
     notifyListeners();
 
     if (_notificationsEnabled) {
-      AlertService.showDangerAlert("Phishing Detected!", "Suspicious message from $source");
+      // 🔴 2. PASS CONFIDENCE TO ALERT SERVICE
+      AlertService.showDangerAlert("Phishing Detected!", message, confidence);
     }
 
     Future(() async {
@@ -286,6 +283,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         await FirebaseFirestore.instance.collection('detected_threats').add({
           'text': message,
           'source': source,
+          'confidence': confidence, // We can save this too
           'timestamp': FieldValue.serverTimestamp(),
         });
       } catch (e) {}
@@ -379,7 +377,6 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       final message = data['text'] ?? '';
       final title = data['title'] ?? ''; 
       
-      // Filter logic
       if (title == "Telegram" || title == "WhatsApp") return; 
       if (message.contains("new messages") || message.contains("messages from")) return;
       if (message.isEmpty) return;
@@ -396,9 +393,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       try {
         final result = await apiService.classifyMessage(message);
         final isPhishing = result['prediction'].toString().toLowerCase() == 'spam';
+        // 🔴 3. CAPTURE CONFIDENCE
+        final confidence = result['spam_probability'] as double;
         
         if (isPhishing) {
-            _handlePhishingDetection(message, title);
+             // 🔴 4. PASS IT TO HANDLER
+             _handlePhishingDetection(message, title, confidence);
         }
         
         final detection = DetectionItem(
@@ -406,7 +406,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
             app: title,
             message: message,
             isPhishing: isPhishing,
-            confidence: result['spam_probability'] as double,
+            confidence: confidence,
             timestamp: DateTime.now(),
         );
         _detections.insert(0, detection);
@@ -457,7 +457,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
       );
 
       if (isPhishing) {
-        _handlePhishingDetection(text, "Manual Scan");
+        // 🔴 5. PASS CONFIDENCE HERE TOO
+        _handlePhishingDetection(text, "Manual Scan", confidence);
       }
       return detection; 
 

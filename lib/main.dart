@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'providers/app_state.dart';
-import 'services/notification_service.dart';
+
+import 'services/notification_service.dart'; 
+import 'services/alert_service.dart';        
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
+import 'providers/app_state.dart';
+
 import 'views/home_dashboard.dart';
 import 'views/settings_page.dart';
 import 'views/activity_page.dart';
-import 'views/onboarding_page.dart'; // 🔴 1. IMPORT
+import 'views/onboarding_page.dart';
+
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await AlertService.initialize(); 
 
   final notificationService = NotificationService();
   final apiService = ApiService();
@@ -28,7 +33,7 @@ void main() async {
             notificationService: notificationService,
             apiService: apiService,
             storageService: storageService,
-            navigatorKey: navigatorKey,
+            navigatorKey: navigatorKey, // Passing key to state
           ),
         ),
       ],
@@ -60,7 +65,8 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey,
+      // 🔴 ASSIGN THE GLOBAL KEY
+      navigatorKey: navigatorKey, 
       debugShowCheckedModeBanner: false,
       title: 'PhishWatch',
       theme: ThemeData(
@@ -68,16 +74,14 @@ class _MyAppState extends State<MyApp> {
         scaffoldBackgroundColor: Color(0xFFF5F7FA),
         useMaterial3: true,
       ),
-      // 🔴 2. DYNAMIC HOME SCREEN
-      // Listens to AppState. If termsAccepted is false -> Onboarding.
       home: Consumer<AppState>(
         builder: (context, appState, child) {
-          // If Terms/Onboarding NOT accepted yet -> Show Onboarding
+          // 1. Show Onboarding if not accepted
           if (!appState.termsAccepted) {
             return OnboardingPage();
           }
 
-          // Otherwise -> Show Main App Layout
+          // 2. Show Dashboard if accepted
           return Scaffold(
             body: _pages[_selectedIndex],
             bottomNavigationBar: BottomNavigationBar(

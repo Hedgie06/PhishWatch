@@ -71,7 +71,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                     "We implement a 'Local-First' architecture to protect your privacy:"
                   ),
                   _buildBullet("Safe Messages: Processed locally on your device (RAM) and immediately discarded. We do not store your private conversations."),
-                  // 🔴 UPDATED: Explicitly mentions database storage for detected items
+                  
                   _buildBullet("Threat Intelligence: If a message is identified as 'High Risk' (Phishing), the specific content is **stored in our secure database**. This allows us to analyze new scam patterns and improve the detection model."),
                   
                   // 4. PERMISSIONS
@@ -80,7 +80,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                     "We require 'Notification Access' strictly to analyze incoming text patterns. "
                     "We do not read, store, or transmit data from unsupported applications."
                   ),
-                  // 🔴 UPDATED: Added Alert Notification info here (Optional)
+                  
                   _buildText(
                     "\n**Real-Time Alerts (Optional):**\n"
                     "By enabling permissions, you also opt-in to receive immediate alert notifications if a phishing attempt is detected. "

@@ -14,9 +14,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   List<Widget> _buildPages() {
     return [
-      // PAGE 1: WELCOME (Now using your Custom Logo)
+      // PAGE 1: WELCOME 
       _buildPage(
-        imagePath: 'assets/icon/app_icon.png', // 🔴 1. Uses your custom logo
+        imagePath: 'assets/icon/app_icon.png', 
         title: "Welcome to PhishWatch",
         description: "Your intelligent guardian against Telegram scams. Specifically designed for detecting threats in the Malay language.",
       ),
@@ -134,7 +134,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // --- 🔴 2. UPDATED HELPER WIDGET ---
+ // --- HELPER: BUILD SINGLE SLIDE ---
   Widget _buildPage({
     IconData? icon,
     String? imagePath, // Added optional image path
@@ -147,28 +147,51 @@ class _OnboardingPageState extends State<OnboardingPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Color(0xFFF5F7FA),
-              shape: BoxShape.circle,
-            ),
-            // 🔴 3. LOGIC: Show Image if provided, otherwise show Icon
-            child: imagePath != null
-                ? Image.asset(
-                    imagePath,
-                    width: 100, // Matching the previous icon size
-                    height: 100,
-                  )
-                : Icon(icon, size: 100, color: Color(0xFF229ED9)),
-          ),
+          
+          // 🔴 UPDATED LOGO LOGIC
+          imagePath != null
+              ? Container(
+                  height: 160, // Slightly larger for the main logo
+                  width: 160,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    // Add a soft shadow to make it pop
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.2), 
+                        blurRadius: 20, 
+                        offset: Offset(0, 10)
+                      )
+                    ],
+                  ),
+                  // ✂️ THE FIX: This cuts the square image into a perfect circle
+                  child: ClipOval(
+                    child: Image.asset(
+                      imagePath,
+                      fit: BoxFit.cover, // Forces the image to fill the entire circle
+                    ),
+                  ),
+                )
+              : Container(
+                  // Keep the original look for the standard Icons (Pages 2 & 3)
+                  padding: EdgeInsets.all(30),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFF5F7FA),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 100, color: Color(0xFF229ED9)),
+                ),
+
           SizedBox(height: 40),
+          
           Text(
             title,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
+          
           SizedBox(height: 20),
+          
           Text(
             description,
             textAlign: TextAlign.center,
