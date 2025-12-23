@@ -50,7 +50,9 @@ class AlertService {
   static Future<void> showDangerAlert(String title, String body, double confidence) async {
     await initialize();
 
-    final Int64List vibrationPattern = Int64List.fromList([0, 200, 100, 200, 1000, 200, 100, 200]);
+    // 🔴 UPDATED VIBRATION: 3 LONG VIBRATIONS
+    // Wait 0ms, Vibrate 1000ms, Pause 500ms, Vibrate 1000ms, Pause 500ms, Vibrate 1000ms
+    final Int64List vibrationPattern = Int64List.fromList([0, 1000, 500, 1000, 500, 1000]);
 
     String detailedMessage = 
         "<b>THREAT LEVEL: HIGH</b><br>"
@@ -61,7 +63,7 @@ class AlertService {
         "• BLOCK the sender.";
 
     final androidDetails = AndroidNotificationDetails(
-      'danger_channel_v6', 
+      'danger_channel_v7', // Bumped version to force phone to update settings
       'Security Alerts', 
       channelDescription: 'Critical security notifications',
       importance: Importance.max,
@@ -80,7 +82,7 @@ class AlertService {
         htmlFormatBigText: true,
         contentTitle: "<b>[ ! ] SECURITY WARNING</b>", 
         htmlFormatContentTitle: true,
-        summaryText: "ACTION REQUIRED", 
+        //summaryText: "ACTION REQUIRED", 
       ),
       icon: 'ic_launcher',
     );
@@ -89,7 +91,7 @@ class AlertService {
 
     await _notifications.show(
       DateTime.now().millisecond, 
-      "🔴 PHISHING ATTEMPT DETECTED", 
+      "[!] PHISHING ATTEMPT DETECTED [!]", 
       "PhishWatch has intercepted a threat. Tap for details.", 
       details,
       // 🔴 4. PACK PAYLOAD: "SCORE|MESSAGE"
